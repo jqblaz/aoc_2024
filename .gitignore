@@ -3,3 +3,4 @@ _targets
 .Rhistory
 .RData
 .DS_Store
+*.Rproj
