@@ -45,7 +45,10 @@ tar_option_set(
 )
 
 # Run the R scripts in the R/ folder with your custom functions:
-tar_source("R/day01.R")
+# tar_source("R/day01.R")
+tar_source(
+  files = "R"
+)
 # tar_source("other_functions.R") # Source other scripts as needed.
 
 # Replace the target list below with your own:
@@ -57,18 +60,35 @@ list(
     description = "Data file name" 
   ),
   tar_target(
-    name = data,
+    name = data_01,
     command = get_data(file),
     description = "Data object" # requires development targets >= 1.5.0.9001: remotes::install_github("ropensci/targets")
   ),
   tar_target(
     name = diffs,
-    command = total_distance(data),
+    command = total_distance(data_01),
     description = "Total distance"
   ),
   tar_target(
     name = similarity,
-    command = similarity_score(data),
+    command = similarity_score(data_01),
     description = "Total similarity score"
+  ),
+  # day 2
+  tar_target(
+    name = file02,
+    command = here("inputs", "day02_01"),
+    format = "file",
+    description = "Day 02 Data file name"
+  ),
+  tar_target(
+    name = data_02,
+    command = get_list(file02),
+    description = "Day 02 data object"
+  ),
+  tar_target(
+    name = safe_rpts,
+    command = safe_reports(data_02),
+    description = "Day 02: total safe reports"
   )
 )

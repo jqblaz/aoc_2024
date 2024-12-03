@@ -1,5 +1,6 @@
 get_data <- function(file) {
-  read.table(file)
+  read_table(file,
+             col_names = FALSE)
 }
 
 total_distance <- function(list_data) {
