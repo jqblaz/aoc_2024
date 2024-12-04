@@ -100,5 +100,27 @@ list(
     name = safe_rpts_dampened,
     command = safe_reports_dampened(data_02_rpts),
     description = "Day 02: total safe reports, dampened"
+  ),
+  # day 3
+  tar_target(
+    name = file03,
+    command = here("inputs", "day03_01"),
+    format = "file",
+    description = "Day 03 Data file name"
+  ),
+  tar_target(
+    name = data_03,
+    command = get_day03_inputs(file03),
+    description = "Day 03 data"
+  ),
+  tar_target(
+    name = sum_prods,
+    command = sum_of_products(data_03),
+    description = "Day 03: sum of products"
+  ),
+  tar_target(
+    name = sum_enabled_prods,
+    command = sum_of_enabled_products(data_03),
+    description = "Day 03: sum of enabled products"
   )
 )
