@@ -82,13 +82,23 @@ list(
     description = "Day 02 Data file name"
   ),
   tar_target(
-    name = data_02,
+    name = data_02_list,
     command = get_list(file02),
-    description = "Day 02 data object"
+    description = "Day 02 data lists"
+  ),
+  tar_target(
+    name = data_02_rpts,
+    command = get_reports(data_02_list),
+    description = "Day 02 data set"
   ),
   tar_target(
     name = safe_rpts,
-    command = safe_reports(data_02),
+    command = safe_reports(data_02_rpts),
     description = "Day 02: total safe reports"
+  ),
+  tar_target(
+    name = safe_rpts_dampened,
+    command = safe_reports_dampened(data_02_rpts),
+    description = "Day 02: total safe reports, dampened"
   )
 )

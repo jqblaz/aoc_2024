@@ -14,43 +14,254 @@ get_list <- function(file_nam) {
   return(as.data.frame(sapply(lst, as.numeric)))
 }
 
-
+get_reports <- function(list_dat) {
+  rpt_data <- list_dat %>% 
+    rownames_to_column(var = "rpt") %>% 
+    pivot_longer(
+      cols = -rpt,
+      names_to = c(".value", "obs"),
+      names_pattern = "(.)(.)"
+    ) %>% 
+    dplyr::filter(!is.na(V))
+  
+  return(rpt_data)
+}
 
 safe_reports <- function(rpts) {
   rpt_safety <- rpts %>% 
-    {list(.[-length(.)], .[-1])} %>% 
-    reduce(`-`) %>% 
-    rename_all(~ str_c("diff", seq_along(.))) %>% 
-    bind_cols(rpts, .) %>% 
+    group_by(rpt) %>% 
     mutate(
-      across( 
-        .cols = starts_with("diff"),
-        .fns = list(~ if_else((abs(.x) > 0 & abs(.x) <= 3) | is.na(.x),
-                              0, 1)),
-        .names = "unsafe_{.col}"),
-      across( 
-        .cols = starts_with("diff"),
-        .fns = list(~ if_else((.x) > 0  | is.na(.x),
-                              0, 1)),
-        .names = "incr_{.col}"),
-      across( 
-        .cols = starts_with("diff"),
-        .fns = list(~ if_else((.x) < 0  | is.na(.x),
-                              0, 1)),
-        .names = "decr_{.col}")
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
     ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
     mutate(
-      not_gradual = rowSums(select(., contains("unsafe"))),
-      not_incr = rowSums(select(., contains("incr"))),
-      not_decr = rowSums(select(., contains("decr"))),
-      safe = if_else(
-        not_gradual == 0 & (not_incr == 0 | not_decr == 0),
-        1, 0
-      )
-    )      
-  
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    )
   
   total_safe = sum(rpt_safety$safe)
   
   return(total_safe)
+}
+
+safe_reports_dampened <- function(rpts_dat) {
+  rpts <- rpts_dat %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    ungroup()
+  
+  rpt_safetyind <- rpts %>% 
+    group_by(rpt) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) 
+  
+  safe_ids = dplyr::filter(rpt_safetyind, safe == 1)$rpt
+  
+  
+  test1 <- rpts_dat %>% 
+    dplyr::filter(!(rpt %in% safe_ids) & obs != 1) %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) %>% 
+    dplyr::filter(safe == 1)
+  
+  safe_ids = c(safe_ids, test1$rpt)
+  
+  test2 <- rpts_dat %>% 
+    dplyr::filter(!(rpt %in% safe_ids) & obs != 2) %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) %>% 
+    dplyr::filter(safe == 1)
+  
+  safe_ids = c(safe_ids, test2$rpt)
+  
+  test3 <- rpts_dat %>% 
+    dplyr::filter(!(rpt %in% safe_ids) & obs != 3) %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) %>% 
+    dplyr::filter(safe == 1)
+  
+  safe_ids = c(safe_ids, test3$rpt)
+  
+  test4 <- rpts_dat %>% 
+    dplyr::filter(!(rpt %in% safe_ids) & obs != 4) %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) %>% 
+    dplyr::filter(safe == 1)
+  
+  safe_ids = c(safe_ids, test4$rpt)
+  
+  test5 <- rpts_dat %>% 
+    dplyr::filter(!(rpt %in% safe_ids) & obs != 5) %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) %>% 
+    dplyr::filter(safe == 1)
+  
+  safe_ids = c(safe_ids, test5$rpt)
+  
+  test6 <- rpts_dat %>% 
+    dplyr::filter(!(rpt %in% safe_ids) & obs != 6) %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) %>% 
+    dplyr::filter(safe == 1)
+  
+  safe_ids = c(safe_ids, test6$rpt)
+  
+  test7 <- rpts_dat %>% 
+    dplyr::filter(!(rpt %in% safe_ids) & obs != 7) %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) %>% 
+    dplyr::filter(safe == 1)
+  
+  safe_ids = c(safe_ids, test7$rpt)
+  
+  test8 <- rpts_dat %>% 
+    dplyr::filter(!(rpt %in% safe_ids) & obs != 8) %>% 
+    group_by(rpt) %>% 
+    mutate(
+      diff = V - dplyr::lead(V),
+      not_grad = if_else((abs(diff) > 0 & abs(diff) <= 3),
+                         0, 1, NA),
+      incr = if_else(diff > 0 , 1, 0, NA),
+      decr = if_else(diff < 0, 1, 0, NA)
+    ) %>% 
+    summarise(
+      not_grad = sum(not_grad, na.rm = T),
+      not_incr = sum(incr, na.rm = T),
+      not_decr = sum(decr, na.rm = T)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      safe = if_else(not_grad == 0 & (not_incr == 0 | not_decr == 0), 1, 0)
+    ) %>% 
+    dplyr::filter(safe == 1)
+  
+  safe_ids = c(safe_ids, test8$rpt)
+  
+  return(length(unique(safe_ids)))
 }
